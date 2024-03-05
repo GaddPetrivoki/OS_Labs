@@ -1,5 +1,7 @@
 #include <pthread.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <math.h>
 
 /* this data is shared by the thread(s) */
 int threads;
@@ -9,6 +11,7 @@ double * pi;
 typedef struct {
 int Count;
 int Start;
+float Result;
 } param_t;
 
 void * runner(void * param); /* the thread */
@@ -34,7 +37,7 @@ int main(int argc, char * argv[]) {
 
         /* create the thread identifiers */
 
-    pthread_t thread_id = (pthread_t*)malloc(threads*sizeof(pthread_t));
+    pthread_t *thread_id = (pthread_t*)malloc(threads*sizeof(pthread_t));
 
         /* create set of attributes for the thread */
 
@@ -55,8 +58,12 @@ int main(int argc, char * argv[]) {
 
     // Each threads gets what value they're gonna start at.
     for(int i=0; i<=threads-1;i++){
+	// Until where do we count
 	params[i].Count = (int)((float)1/threads* iterations);
+	// Where do we start
 	params[i].Start = (int)((float)i/threads * iterations);
+
+	pthread_create(&thread_id[i], &attr, runner, &params[i]);
     }
 
 // attribute needs to have max value calculated. Unless if I divy up the threads differently. Could make it so threads calculate 1,
@@ -69,33 +76,38 @@ int main(int argc, char * argv[]) {
     
 
             /* get the default attributes */
-            ...
             /* create threads */
-    pthread_create(&thread_id, NULL, runner, NULL);
-            ...
             /* now wait for the threads to exit */
-            ...
-
               /* compute and print results */
-              ...
+	float sum = 0;
+	for(int i = 0; i <=threads;i++){
+	    pthread_join(thread_id[i],NULL);
+	    sum += params[i].Result;
 
-              ...printf("pi = %.15f\n",...
+	}
+		printf("pi = %.15f\n", 4*sum);
 
 
-        }
+}
+
+
+
         /**
          * The thread will begin control in this function
          */
-        void * runner(void * param) {
-            int threadid=param;
+void * runner(void * param) {
+           param_t *p = (param_t*)param;
+	
         // Why would we ever use pithread[threadid] ???
         // Why not just add it to the global value of pi ???
+	    float sum = 0;
+	    for(int i=p->Start; i<p->Count;i++){
 
-            *pi += (pow((-1),param)) /(2*param+1);
+           sum += (pow((-1),i)) /(2*i+1);
 
-
+	    };
             //complete function
-
+	    p->Result = sum;
 
             pthread_exit(0);
         }
