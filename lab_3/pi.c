@@ -23,14 +23,20 @@ int main(int argc, char * argv[]) {
             /*exit(1);*/
             return -1;
         }
-        if (atoi(argv[1]) < 0 || atoi(argv[2]) < 0) {
+        if (atoi(argv[1]) < 1 || atoi(argv[2]) < 0) {
             fprintf(stderr, "Arguments must be non-negative\n ");
                 /*exit(1);*/
                 return -1;
             }
 
 	// Should probably be constants.
-	int threads    = atoi(argv[2]);
+	int threads = 1;
+	if(atoi(argv[2])%2==0){	
+	    threads = atoi(argv[2]);
+	    }
+	else{
+	    threads = atoi(argv[2])+1;	
+	}
 	int iterations = atoi(argv[1]);
 	
        
