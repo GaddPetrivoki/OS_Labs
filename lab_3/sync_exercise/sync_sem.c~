@@ -10,10 +10,15 @@
 #define BUFFER_SIZE 20
 
 
-pthread_mutex_t mutexBuffer;
-pthread_cond_t condBuffernotFull;
-pthread_cond_t condBuffernotEmpty;
+//pthread_mutex_t mutexBuffer;
+//pthread_cond_t condBuffernotFull;
+//pthread_cond_t condBuffernotEmpty;
 
+sem_t semFull;
+sem_t semEmpty;
+
+int iInserts = 0;
+int iRemoves = 0;
 
 int count = 0;
 int buffer [BUFFER_SIZE];
@@ -21,8 +26,6 @@ int buffer [BUFFER_SIZE];
 int producerIndex = 0;
 int consumerIndex = 0;
 
-int iInserts = 0;
-int iRemoves = 0;
 pthread_t tid;
 
 typedef struct {
@@ -30,36 +33,31 @@ int threadCount;
 } param_t;
 
 void insert(int item){
-    
-   pthread_mutex_lock(&mutexBuffer);
-   while ((producerIndex+1)%BUFFER_SIZE== consumerIndex)
-       pthread_cond_wait(&condBuffernotFull, &mutexBuffer);
-   buffer[producerIndex] = item;
-   producerIndex = (producerIndex+1) % BUFFER_SIZE;
-   pthread_cond_signal(&condBuffernotEmpty);
+   sem_wait(&semEmpty);
 
-   pthread_mutex_unlock(&mutexBuffer);
+ //  pthread_mutex_lock(&mutexBuffer);
+   buffer[count] = item;
+   count++;
+  // pthread_mutex_unlock(&mutexBuffer);
+   sem_post(&semFull);
    sleep(1); 
 }
 
 int remove_item(){
    int item;
 
-   pthread_mutex_lock(&mutexBuffer);
-   while (producerIndex == consumerIndex)
-       pthread_cond_wait(&condBuffernotEmpty, &mutexBuffer);
- 
-   item = buffer[consumerIndex];
-   consumerIndex = (consumerIndex+1) % BUFFER_SIZE;
-   pthread_cond_signal(&condBuffernotFull);
+   sem_wait(&semFull);
+   //pthread_mutex_lock(&mutexBuffer);
+   item = buffer[count-1];
+   count--;
 
-   pthread_mutex_unlock(&mutexBuffer);
+   //pthread_mutex_unlock(&mutexBuffer);
+   sem_post(&semEmpty);
    sleep(1); 
    return item;
 }
 void * producer(void * param){
    int item;
-   param_t *p = (param_t*)param;
 
    while(1){
    item = rand() % BUFFER_SIZE ;
@@ -76,7 +74,7 @@ void * consumer(void * param){
    param_t *p = (param_t*)param;
    while(1){
    	item = remove_item();
-	iRemoves++;
+	iRemoves++;	
    	printf("out: %d removed: %d\n",iRemoves, item);
    }
  
@@ -93,10 +91,14 @@ int main(int argc, char * argv[])
     pthread_t tid_consumer[consumers];
 
     // Initialize mutex 
-    pthread_mutex_init(&mutexBuffer, NULL);
+    //pthread_mutex_init(&mutexBuffer, NULL);
     
-    pthread_cond_init(&condBuffernotFull,NULL);
-    pthread_cond_init(&condBuffernotEmpty,NULL);
+    //pthread_cond_init(&condBuffernotFull,NULL);
+    //pthread_cond_init(&condBuffernotEmpty,NULL);
+
+    sem_init(&semEmpty, 0, BUFFER_SIZE);
+    sem_init(&semFull, 0, 0);
+
 
     param_t *params = (param_t*)malloc((producers+consumers) * sizeof(param_t));
     for (i=0; i<(producers+consumers);i++)
@@ -114,9 +116,13 @@ int main(int argc, char * argv[])
     	pthread_join(tid_consumer[i],NULL);
      
     // Free up mutex
-    pthread_mutex_destroy(&mutexBuffer);
-    pthread_cond_destroy(&condBuffernotFull);
-    pthread_cond_destroy(&condBuffernotEmpty);
+    //pthread_mutex_destroy(&mutexBuffer);
+    //pthread_cond_destroy(&condBuffernotFull);
+    //pthread_cond_destroy(&condBuffernotEmpty);
+
+    // Sem destroy
+    sem_destroy(&semEmpty);
+    sem_destroy(&semFull);
 
 
 }

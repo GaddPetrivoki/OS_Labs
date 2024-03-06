@@ -9,9 +9,11 @@
 
 #define BUFFER_SIZE 20
 
+
 pthread_mutex_t mutexBuffer;
 pthread_cond_t condBuffernotFull;
 pthread_cond_t condBuffernotEmpty;
+
 
 int count = 0;
 int buffer [BUFFER_SIZE];
@@ -19,6 +21,8 @@ int buffer [BUFFER_SIZE];
 int producerIndex = 0;
 int consumerIndex = 0;
 
+int iInserts = 0;
+int iRemoves = 0;
 pthread_t tid;
 
 typedef struct {
@@ -60,7 +64,8 @@ void * producer(void * param){
    while(1){
    item = rand() % BUFFER_SIZE ;
       insert(item);
-      printf("in: %d inserted: %d\n",p->threadCount, item);
+      iInserts++;
+      printf("in: %d inserted: %d\n",iInserts, item);
 	
    }
 
@@ -71,7 +76,8 @@ void * consumer(void * param){
    param_t *p = (param_t*)param;
    while(1){
    	item = remove_item();
-   	printf("out: %d removed: %d\n",p->threadCount, item);
+	iRemoves++;
+   	printf("out: %d removed: %d\n",iRemoves, item);
    }
  
 }
