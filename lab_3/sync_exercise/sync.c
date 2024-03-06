@@ -10,8 +10,14 @@
 #define BUFFER_SIZE 20
 
 pthread_mutex_t mutexBuffer;
+pthread_cond_t condBuffernotFull;
+pthread_cond_t condBuffernotEmpty;
+
 int count = 0;
 int buffer [BUFFER_SIZE];
+
+int producerIndex = 0;
+int consumerIndex = 0;
 
 pthread_t tid;
 
@@ -20,38 +26,42 @@ int threadCount;
 } param_t;
 
 void insert(int item){
-   while (count == BUFFER_SIZE);
+    
    pthread_mutex_lock(&mutexBuffer);
-   buffer[count] = item;
-   count++;
+   while ((producerIndex+1)%BUFFER_SIZE== consumerIndex)
+       pthread_cond_wait(&condBuffernotFull, &mutexBuffer);
+   buffer[producerIndex] = item;
+   producerIndex = (producerIndex+1) % BUFFER_SIZE;
+   pthread_cond_signal(&condBuffernotEmpty);
+
    pthread_mutex_unlock(&mutexBuffer);
    sleep(1); 
 }
 
 int remove_item(){
    int item;
-   while (count == 0);
 
-	pthread_mutex_lock(&mutexBuffer);
-	item = buffer[count];
-	count--;
+   pthread_mutex_lock(&mutexBuffer);
+   while (producerIndex == consumerIndex)
+       pthread_cond_wait(&condBuffernotEmpty, &mutexBuffer);
+ 
+   item = buffer[consumerIndex];
+   consumerIndex = (consumerIndex+1) % BUFFER_SIZE;
+   pthread_cond_signal(&condBuffernotFull);
 
-	pthread_mutex_unlock(&mutexBuffer);
+   pthread_mutex_unlock(&mutexBuffer);
    sleep(1); 
    return item;
 }
 void * producer(void * param){
    int item;
    param_t *p = (param_t*)param;
+
    while(1){
-
-      item = rand() % BUFFER_SIZE ;
-      if(count < BUFFER_SIZE){
+   item = rand() % BUFFER_SIZE ;
       insert(item);
-     
       printf("in: %d inserted: %d\n",p->threadCount, item);
-	}
-
+	
    }
 
 }
@@ -60,12 +70,8 @@ void * consumer(void * param){
    int item;
    param_t *p = (param_t*)param;
    while(1){
-
-	if(count > 0) { 
    	item = remove_item();
    	printf("out: %d removed: %d\n",p->threadCount, item);
-	}
-
    }
  
 }
@@ -76,22 +82,36 @@ int main(int argc, char * argv[])
     int consumers = atoi(argv[2]);
     int i;
 
+    // array of threads
+    pthread_t tid_producer[producers];
+    pthread_t tid_consumer[consumers];
+
     // Initialize mutex 
     pthread_mutex_init(&mutexBuffer, NULL);
+    
+    pthread_cond_init(&condBuffernotFull,NULL);
+    pthread_cond_init(&condBuffernotEmpty,NULL);
 
-    param_t *params = (param_t*)malloc(producers+consumers * sizeof(param_t));
-    for (i=0; i<producers+consumers;i++)
-	params[i].threadCount == i;
+    param_t *params = (param_t*)malloc((producers+consumers) * sizeof(param_t));
+    for (i=0; i<(producers+consumers);i++)
+	params[i].threadCount = i+1;
 
     for (i = 0; i < producers; i++)
-       pthread_create(&tid, NULL, producer,&params[i]);
+       pthread_create(&tid_producer[i], NULL, producer,&params[i]);
 
     for (i = 0; i < consumers; i++)
-       pthread_create(&tid, NULL, consumer,&params[i]);
+       pthread_create(&tid_consumer[i], NULL, consumer,&params[i]);
 
-	for (i = 0; i < producers+ consumers; i++)
-		pthread_join(tid,NULL);
+    for (i = 0; i < producers; i++)
+	pthread_join(tid_producer[i],NULL);
+    for (i = 0; i < consumers; i++)
+    	pthread_join(tid_consumer[i],NULL);
+     
     // Free up mutex
     pthread_mutex_destroy(&mutexBuffer);
+    pthread_cond_destroy(&condBuffernotFull);
+    pthread_cond_destroy(&condBuffernotEmpty);
+
+
 }
 
